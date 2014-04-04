@@ -1,14 +1,14 @@
-import framework
+import module
 # unique to module
 import time, re#, requests, libxml2
 from lxml import etree, html
 from io import StringIO, BytesIO
 #from optparse import OptionParser
 
-class Module(framework.module):
+class Module(module.Module):
 	
 	def __init__(self, params):
-		framework.module.__init__(self, params)
+		module.Module.__init__(self, params)
 		self.register_option('url', None, 'yes', 'public linkedin seed url of employee for targeted company')
 		self.register_option('company', None, 'no', 'company name to compare against rather than the seed \'URL\' company name')
 		self.register_option('wait', 1, 'no', 'wait time between http requests in seconds')
@@ -21,9 +21,8 @@ class Module(framework.module):
 		self.getInfo(company)
 			
 	def getCompany(self):
-		company = self.options['company']['value']
-		if not company:		
-			resp = self.request(self.options['url']['value'])
+		if self.options['company'] is None:		
+			resp = self.request(self.options['url'])
 			parser = etree.HTMLParser()
 			tree = etree.parse(StringIO(resp.text), parser)
 			try: 
@@ -37,18 +36,20 @@ class Module(framework.module):
 						company = titleatCompany.split("at ",1)[1]					
 					except IndexError:
 						self.error('No company found on seed url page')
+		else:
+			company = self.options['company']
 		return(company)
 		
 	def getInfo(self, company):
-		verbose = self.options['verbose']['value']
+		verbose = self.options['verbose']
 		tempURLList = []
 		accepted = []
 		rejected = []
-		tempURLList.append(self.options['url']['value'])
+		tempURLList.append(self.options['url'])
 		i= len(tempURLList)
 		while i > 0:
 			tempURL = tempURLList.pop(0)		
-			time.sleep(self.options['wait']['value'])
+			time.sleep(self.options['wait'])
 			if verbose == 't' or verbose == 'T': self.output('Parsing: ' + tempURL)
 			resp = self.request(tempURL)
 			parser = etree.HTMLParser()
@@ -63,7 +64,7 @@ class Module(framework.module):
 					try:
 						tempCompany = ((tree.xpath('//p[@class="headline-title title"]/text()')[0]).strip()).split("at ",1)[1]				
 					except IndexError:
-						continue
+						if verbose == 't' or verbose == 'T': self.verbose('No current company found on page')
 						
 			if company in tempCompany:
 				fname = (tree.xpath('//span[@class="given-name"]/text()')[0]).split(' ',1)[0]
@@ -94,3 +95,4 @@ class Module(framework.module):
 			
 			i = len(tempURLList)
 			if verbose == 't' or verbose == 'T': self.verbose(str(i) + ' url\'s left to try')
+		return
